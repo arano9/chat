@@ -39,14 +39,14 @@ func (manager *ClientManager) start() {
 		select {
 		case conn := <-manager.register:
 			manager.clients[conn] = true
-			jsonMessage, _ := json.Marshal(&Message{Content: "/A new socket has connected."})
-			manager.send(jsonMessage, conn)
+			jsonMessage, _ := json.Marshal(&Message{Content: "/A new socket has connected." + conn.id})
+			manager.noticeOthers(jsonMessage, conn)
 		case conn := <-manager.unregister:
 			if _, ok := manager.clients[conn]; ok {
 				close(conn.send)
 				delete(manager.clients, conn)
-				jsonMessage, _ := json.Marshal(&Message{Content: "/A socket has disconnected."})
-				manager.send(jsonMessage, conn)
+				jsonMessage, _ := json.Marshal(&Message{Content: "/A socket has disconnected." + conn.id})
+				manager.noticeOthers(jsonMessage, conn)
 			}
 		case message := <-manager.broadcast:
 			for conn := range manager.clients {
@@ -60,7 +60,7 @@ func (manager *ClientManager) start() {
 		}
 	}
 }
-func (manager *ClientManager) send(message []byte, ignore *Client) {
+func (manager *ClientManager) noticeOthers(message []byte, ignore *Client) {
 	for conn := range manager.clients {
 		if conn != ignore {
 			conn.send <- message
@@ -95,7 +95,7 @@ func (c *Client) write() {
 		select {
 		case message, ok := <-c.send:
 			if !ok {
-				c.socket.WriteMessage(websocket.CloseMessage, []byte("wrong status channel"))
+				c.socket.WriteMessage(websocket.CloseMessage, []byte(" channel has been closed"))
 				return
 			}
 
